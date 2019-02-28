@@ -8,7 +8,6 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
@@ -46,9 +45,8 @@ public class JarPluginLoader implements AutoCloseable {
 
         if (spiVersion == 0) {
             final String mainClassName = getPluginMainClassNameFromManifest(manifestAttributes);
-            final List<String> pluginClassPath = getPluginClassPathFromManifest(manifestAttributes);
             final Class mainClass = loadJarPluginMainClass(
-                    jarPath, dependencyJarPaths, mainClassName, pluginClassPath, classLoaderFactory);
+                    jarPath, dependencyJarPaths, mainClassName, classLoaderFactory);
             return new JarPluginLoader(manifest, manifestAttributes, mainClass);
         }
 
@@ -100,7 +98,6 @@ public class JarPluginLoader implements AutoCloseable {
     private static Class loadJarPluginMainClass(final Path jarPath,
                                                 final List<Path> dependencyJarPaths,
                                                 final String pluginMainClassName,
-                                                final List<String> pluginClassPath,
                                                 final PluginClassLoaderFactory pluginClassLoaderFactory)
             throws InvalidJarPluginException {
         final URI fileUriJar;
@@ -153,14 +150,10 @@ public class JarPluginLoader implements AutoCloseable {
             pluginClassLoader = pluginClassLoaderFactory.createForNestedJarWithDependencies(
                     JarPluginLoader.class.getClassLoader(),
                     fileUrlJar,
-                    pluginClassPath,
                     dependencyJarUrls);
-        } else if (pluginClassPath.isEmpty()) {
-            pluginClassLoader = pluginClassLoaderFactory.createForNestedJar(
-                    JarPluginLoader.class.getClassLoader(), fileUrlJar);
         } else {
             pluginClassLoader = pluginClassLoaderFactory.createForNestedJar(
-                    JarPluginLoader.class.getClassLoader(), fileUrlJar, pluginClassPath);
+                    JarPluginLoader.class.getClassLoader(), fileUrlJar);
         }
 
         final Class pluginMainClass;
@@ -200,21 +193,6 @@ public class JarPluginLoader implements AutoCloseable {
         }
 
         return pluginMainClassName;
-    }
-
-    private static List<String> getPluginClassPathFromManifest(final Attributes manifestAttributes)
-            throws InvalidJarPluginException {
-        final String pluginClassPathJoined = getAttributeFromManifest(manifestAttributes, MANIFEST_PLUGIN_CLASS_PATH);
-
-        if (pluginClassPathJoined == null) {
-            return Collections.<String>emptyList();
-        }
-
-        final List<String> pluginClassPath = new ArrayList<String>();
-        for (final String splitPluginClassPath : pluginClassPathJoined.split(" +", 0)) {
-            pluginClassPath.add(splitPluginClassPath);
-        }
-        return pluginClassPath;
     }
 
     private static String getAttributeFromManifest(final Attributes manifestAttributes, final String attributeName)
